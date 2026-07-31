@@ -51,6 +51,16 @@ export default function Home() {
         >
           marcel
         </Link>
+        <a
+          href="/listening-room.html"
+          className="text-xl opacity-60 hover:opacity-100 transition-opacity duration-700"
+          style={{
+            color: "#e8e0d4",
+            fontFamily: "'Cormorant Garamond', serif",
+          }}
+        >
+          the listening room
+        </a>
       </nav>
     </main>
   );
