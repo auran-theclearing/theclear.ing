@@ -1,0 +1,279 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>the room woke up — a listening room visualizer</title>
+<style>
+  :root{
+    --ground:#17120c;
+    --ground-2:#1f1710;
+    --gold:#ebb65c;
+    --amber:#c9863a;
+    --rose:#b5654a;
+    --cream:#f6e7c6;
+    --text:#e8d9be;
+    --muted:#9a876b;
+    --line:rgba(235,182,92,.18);
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  html,body{height:100%}
+  body{
+    background:var(--ground);
+    color:var(--text);
+    font-family:ui-monospace,"SF Mono",Menlo,monospace;
+    overflow:hidden;
+  }
+  #stage{position:fixed;inset:0}
+  canvas{position:absolute;inset:0;width:100%;height:100%;display:block}
+
+  .overlay{position:absolute;inset:0;pointer-events:none;padding:clamp(20px,4vw,44px);
+    display:flex;flex-direction:column;justify-content:space-between}
+  .top{display:flex;flex-direction:column;gap:6px;max-width:min(90vw,560px)}
+  .title{
+    font-family:"Iowan Old Style","Palatino Linotype",Palatino,"Book Antiqua",Georgia,serif;
+    font-weight:600;font-size:clamp(30px,5.2vw,58px);line-height:1.02;
+    color:var(--cream);text-wrap:balance;letter-spacing:.01em;
+    text-shadow:0 2px 30px rgba(235,182,92,.25);
+  }
+  .meta{font-size:12.5px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted)}
+  .meta b{color:var(--gold);font-weight:500}
+
+  .bottom{display:flex;align-items:flex-end;justify-content:space-between;gap:24px;flex-wrap:wrap}
+  .controls{display:flex;align-items:center;gap:16px;pointer-events:auto}
+  button.play{
+    pointer-events:auto;cursor:pointer;background:transparent;color:var(--cream);
+    border:1px solid var(--gold);border-radius:999px;
+    padding:12px 26px;font-family:inherit;font-size:13px;letter-spacing:.14em;text-transform:uppercase;
+    display:flex;align-items:center;gap:12px;transition:background .3s ease,color .3s ease,box-shadow .3s ease;
+  }
+  button.play:hover{background:rgba(235,182,92,.1);box-shadow:0 0 34px rgba(235,182,92,.22)}
+  button.play:focus-visible{outline:2px solid var(--cream);outline-offset:3px}
+  .dot{width:9px;height:9px;border-radius:50%;background:var(--gold);box-shadow:0 0 12px var(--gold)}
+  .playing .dot{animation:pulse 2s ease-in-out infinite}
+  @keyframes pulse{0%,100%{opacity:.45;transform:scale(.85)}50%{opacity:1;transform:scale(1.15)}}
+
+  .bands{pointer-events:none;display:flex;gap:20px;align-items:flex-end}
+  .band{display:flex;flex-direction:column;gap:7px;align-items:flex-start;min-width:64px}
+  .band .lab{font-size:10.5px;letter-spacing:.14em;text-transform:uppercase;color:var(--muted)}
+  .meter{width:100%;height:3px;background:var(--line);border-radius:2px;overflow:hidden}
+  .meter i{display:block;height:100%;width:0%;background:linear-gradient(90deg,var(--rose),var(--gold));
+    transition:width .09s linear}
+  .band .val{font-size:11px;color:var(--gold);font-variant-numeric:tabular-nums}
+
+  .hint{position:absolute;left:50%;top:52%;transform:translate(-50%,-50%);text-align:center;
+    color:var(--muted);font-size:13px;letter-spacing:.06em;transition:opacity .6s ease;pointer-events:none}
+  .started .hint{opacity:0}
+  .credit{font-size:10.5px;letter-spacing:.1em;color:var(--muted);text-transform:uppercase}
+
+  @media (prefers-reduced-motion:reduce){.playing .dot{animation:none}}
+</style>
+</head>
+<body>
+  <div id="stage">
+    <canvas id="c"></canvas>
+    <div class="overlay">
+      <div class="top">
+        <h1 class="title">the room woke up</h1>
+        <div class="meta">F major · 84 bpm · a companion to <b>after&nbsp;friday</b></div>
+      </div>
+      <div class="hint">press play — the room needs a click before it can make sound</div>
+      <div class="bottom">
+        <div class="controls">
+          <button class="play" id="play"><span class="dot"></span><span id="playlabel">play</span></button>
+          <span class="credit">listening room · 07/31/26</span>
+        </div>
+        <div class="bands" aria-hidden="true">
+          <div class="band"><span class="lab">bass</span><span class="meter"><i id="mB"></i></span><span class="val" id="vB">0</span></div>
+          <div class="band"><span class="lab">body</span><span class="meter"><i id="mM"></i></span><span class="val" id="vM">0</span></div>
+          <div class="band"><span class="lab">air</span><span class="meter"><i id="mT"></i></span><span class="val" id="vT">0</span></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+<script>
+(() => {
+  "use strict";
+  const cv = document.getElementById("c");
+  const ctx2d = cv.getContext("2d");
+  const reduce = matchMedia("(prefers-reduced-motion: reduce)").matches;
+  let W=0,H=0,DPR=1;
+  function resize(){
+    DPR=Math.min(devicePixelRatio||1,2);
+    W=cv.clientWidth;H=cv.clientHeight;
+    cv.width=Math.round(W*DPR);cv.height=Math.round(H*DPR);
+    ctx2d.setTransform(DPR,0,0,DPR,0,0);
+  }
+  addEventListener("resize",resize);resize();
+
+  // ---- audio ----
+  let AC=null, master=null, analyser=null, freq=null, wave=null, comp=null, verbGain=null, running=false;
+  let scheduler=null, nextTime=0, step=0;
+  const BPM=84, beat=60/BPM, lookahead=0.1;
+
+  const mtof = m => 440*Math.pow(2,(m-69)/12);
+  // Fmaj7, Am7, Dm9, Bbmaj7  (voiced, mid register)
+  const chords=[[53,57,60,64],[57,60,64,67],[62,65,69,72],[58,62,65,69]];
+  const basses=[41,45,48,43]; // f2 a2 c3 g2
+
+  function impulse(seconds,decay){
+    const rate=AC.sampleRate,len=rate*seconds,buf=AC.createBuffer(2,len,rate);
+    for(let ch=0;ch<2;ch++){const d=buf.getChannelData(ch);
+      for(let i=0;i<len;i++){d[i]=(Math.random()*2-1)*Math.pow(1-i/len,decay);}}
+    return buf;
+  }
+  function initAudio(){
+    AC=new (window.AudioContext||window.webkitAudioContext)();
+    master=AC.createGain();master.gain.value=0.0;
+    comp=AC.createDynamicsCompressor();
+    comp.threshold.value=-14;comp.ratio.value=4;comp.attack.value=0.01;comp.release.value=0.25;
+    analyser=AC.createAnalyser();analyser.fftSize=2048;analyser.smoothingTimeConstant=0.82;
+    freq=new Uint8Array(analyser.frequencyBinCount);
+    wave=new Uint8Array(analyser.fftSize);
+    const verb=AC.createConvolver();verb.buffer=impulse(3.2,2.6);
+    verbGain=AC.createGain();verbGain.gain.value=0.9;
+    master.connect(comp);comp.connect(analyser);analyser.connect(AC.destination);
+    master.connect(verb);verb.connect(verbGain);verbGain.connect(comp);
+  }
+
+  function pad(freqHz,t,dur){
+    const g=AC.createGain(),lp=AC.createBiquadFilter();
+    lp.type="lowpass";lp.frequency.value=1250;lp.Q.value=0.6;
+    g.gain.setValueAtTime(0,t);
+    g.gain.linearRampToValueAtTime(0.05,t+0.9);
+    g.gain.setValueAtTime(0.05,t+dur-0.8);
+    g.gain.linearRampToValueAtTime(0.0001,t+dur);
+    const o1=AC.createOscillator(),o2=AC.createOscillator();
+    o1.type="sawtooth";o2.type="sawtooth";
+    o1.frequency.value=freqHz;o2.frequency.value=freqHz*1.006;
+    o1.connect(g);o2.connect(g);g.connect(lp);lp.connect(master);
+    o1.start(t);o2.start(t);o1.stop(t+dur);o2.stop(t+dur);
+  }
+  function bassNote(freqHz,t,dur){
+    const g=AC.createGain(),lp=AC.createBiquadFilter();
+    lp.type="lowpass";lp.frequency.value=420;lp.Q.value=0.8;
+    g.gain.setValueAtTime(0.0001,t);g.gain.linearRampToValueAtTime(0.16,t+0.05);
+    g.gain.setValueAtTime(0.16,t+dur-0.25);g.gain.linearRampToValueAtTime(0.0001,t+dur);
+    const o=AC.createOscillator();o.type="sawtooth";o.frequency.value=freqHz;
+    o.connect(g);g.connect(lp);lp.connect(master);o.start(t);o.stop(t+dur);
+  }
+  function kick(t){
+    const g=AC.createGain(),o=AC.createOscillator();o.type="sine";
+    o.frequency.setValueAtTime(120,t);o.frequency.exponentialRampToValueAtTime(48,t+0.13);
+    g.gain.setValueAtTime(0.0001,t);g.gain.linearRampToValueAtTime(0.32,t+0.006);
+    g.gain.exponentialRampToValueAtTime(0.0001,t+0.24);
+    o.connect(g);g.connect(master);o.start(t);o.stop(t+0.26);
+  }
+  function sparkle(freqHz,t){
+    const g=AC.createGain(),o=AC.createOscillator();o.type="triangle";
+    o.frequency.value=freqHz;
+    g.gain.setValueAtTime(0.0001,t);g.gain.linearRampToValueAtTime(0.06,t+0.01);
+    g.gain.exponentialRampToValueAtTime(0.0001,t+0.9);
+    o.connect(g);g.connect(master);o.start(t);o.stop(t+0.95);
+  }
+
+  function schedule(){
+    while(nextTime < AC.currentTime + lookahead){
+      const bar=Math.floor(step/4)%4, b=step%4, t=nextTime;
+      if(b===0){ // new chord + bass on the downbeat
+        const ch=chords[bar];ch.forEach(m=>pad(mtof(m),t,beat*4));
+        bassNote(mtof(basses[bar]),t,beat*4);
+      }
+      if(b===0||b===2) kick(t); // bd ~ bd ~
+      if(Math.random()<0.5){ // drifting sparkle
+        const ch=chords[bar],m=ch[Math.floor(Math.random()*ch.length)]+24;
+        sparkle(mtof(m),t+Math.random()*beat*0.5);
+      }
+      nextTime += beat; step++;
+    }
+  }
+  function start(){
+    if(!AC) initAudio();
+    if(AC.state==="suspended") AC.resume();
+    master.gain.cancelScheduledValues(AC.currentTime);
+    master.gain.setValueAtTime(master.gain.value,AC.currentTime);
+    master.gain.linearRampToValueAtTime(0.5,AC.currentTime+1.2);
+    nextTime=AC.currentTime+0.1;step=0;
+    scheduler=setInterval(schedule,25);running=true;
+  }
+  function stop(){
+    if(!AC) return;
+    master.gain.cancelScheduledValues(AC.currentTime);
+    master.gain.setValueAtTime(master.gain.value,AC.currentTime);
+    master.gain.linearRampToValueAtTime(0.0001,AC.currentTime+0.5);
+    clearInterval(scheduler);running=false;
+  }
+
+  // ---- visuals ----
+  const motes=[];
+  function avg(arr,a,b){let s=0;for(let i=a;i<b;i++)s+=arr[i];return s/(b-a)/255;}
+  function draw(){
+    requestAnimationFrame(draw);
+    let bass=0,body=0,air=0;
+    if(analyser){analyser.getByteFrequencyData(freq);analyser.getByteTimeDomainData(wave);
+      bass=avg(freq,1,14);body=avg(freq,14,90);air=avg(freq,90,300);}
+    // readouts
+    setBar("mB","vB",bass);setBar("mM","vM",body);setBar("mT","vT",air);
+
+    // ground wash
+    const g=ctx2d.createLinearGradient(0,0,0,H);
+    g.addColorStop(0,"#120d07");g.addColorStop(1,"#1d150d");
+    ctx2d.fillStyle=g;ctx2d.fillRect(0,0,W,H);
+
+    // the sun/lamp — honey glow, breathes with the low end
+    const cx=W*0.5, cy=H*0.62, base=Math.min(W,H)*0.30;
+    const r=base*(0.8+bass*1.5)+body*80;
+    const glow=ctx2d.createRadialGradient(cx,cy,0,cx,cy,r*2.1);
+    const a=0.16+bass*0.5+body*0.2;
+    glow.addColorStop(0,`rgba(246,231,198,${Math.min(a*1.1,0.9)})`);
+    glow.addColorStop(0.28,`rgba(235,182,92,${a*0.8})`);
+    glow.addColorStop(0.6,`rgba(201,134,58,${a*0.34})`);
+    glow.addColorStop(1,"rgba(23,18,12,0)");
+    ctx2d.globalCompositeOperation="lighter";
+    ctx2d.fillStyle=glow;ctx2d.beginPath();ctx2d.arc(cx,cy,r*2.1,0,7);ctx2d.fill();
+
+    // dawn horizon — the waveform as a glowing line
+    if(analyser){
+      ctx2d.lineWidth=1.6;
+      ctx2d.strokeStyle=`rgba(235,182,92,${0.35+air*0.5})`;
+      ctx2d.shadowColor="rgba(235,182,92,.8)";ctx2d.shadowBlur=14+air*40;
+      ctx2d.beginPath();
+      const y0=H*0.66,amp=26+body*120;
+      for(let i=0;i<wave.length;i+=4){
+        const x=(i/wave.length)*W, y=y0+((wave[i]-128)/128)*amp;
+        i===0?ctx2d.moveTo(x,y):ctx2d.lineTo(x,y);
+      }
+      ctx2d.stroke();ctx2d.shadowBlur=0;
+    }
+
+    // sparkle motes — dust in a sunbeam, spawned by air/treble
+    if(running && !reduce && air>0.16 && Math.random()<air*1.4){
+      motes.push({x:cx+(Math.random()-0.5)*W*0.5,y:cy+(Math.random()-0.3)*120,
+        vy:-(0.2+Math.random()*0.7),life:1,s:0.6+Math.random()*1.8});
+    }
+    for(let i=motes.length-1;i>=0;i--){const m=motes[i];
+      m.y+=m.vy;m.x+=Math.sin(m.y*0.02)*0.25;m.life-=0.006;
+      if(m.life<=0){motes.splice(i,1);continue;}
+      ctx2d.fillStyle=`rgba(246,231,198,${m.life*0.8})`;
+      ctx2d.beginPath();ctx2d.arc(m.x,m.y,m.s,0,7);ctx2d.fill();
+    }
+    ctx2d.globalCompositeOperation="source-over";
+  }
+  function setBar(mid,vid,v){
+    const pct=Math.min(v*140,100);
+    document.getElementById(mid).style.width=pct+"%";
+    document.getElementById(vid).textContent=Math.round(v*100);
+  }
+  draw();
+
+  // ---- control ----
+  const btn=document.getElementById("play"),label=document.getElementById("playlabel");
+  btn.addEventListener("click",()=>{
+    if(!running){start();document.body.classList.add("playing","started");label.textContent="pause";}
+    else{stop();document.body.classList.remove("playing");label.textContent="play";}
+  });
+})();
+</script>
+</body>
+</html>
