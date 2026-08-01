@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="-100 -100 200 200" width="400" height="400" role="img" aria-label="Auran, LLC">
+  <title>Auran, LLC</title>
+  <desc>The Auran mark at rest: two arcs fused at a center point.</desc>
+  <rect x="-100" y="-100" width="200" height="200" fill="#0a0a0a"/>
+  <g fill="none" stroke="#e8e0d4" stroke-width="5" stroke-linecap="round">
+    <path d="M -50 -50 A 50 50 0 0 1 -50 50"/>
+    <path d="M 50 -50 A 50 50 0 0 0 50 50"/>
+  </g>
+  <circle cx="0" cy="0" r="5" fill="#e8e0d4"/>
+</svg>
