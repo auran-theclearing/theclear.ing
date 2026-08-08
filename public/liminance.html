@@ -1,0 +1,340 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>liminance — the two registers meeting</title>
+<style>
+  :root{
+    /* embodied (left, warm) */
+    --emb-1:#b5654a; --emb-2:#c9863a; --emb-3:#ebb65c;
+    /* sacred (right, cool) */
+    --sac-1:#5aa9c9; --sac-2:#7fd3e6; --sac-3:#cfeaff;
+    /* the meeting */
+    --purple:#9a6cff; --purple-hot:#c39bff;
+    --cream:#f2e9d8; --text:#e6ddcf; --muted:#8c8496;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  html,body{height:100%}
+  body{
+    background:#08070c;color:var(--text);
+    font-family:ui-monospace,"SF Mono",Menlo,monospace;overflow:hidden;
+  }
+  #stage{position:fixed;inset:0}
+  canvas{position:absolute;inset:0;width:100%;height:100%;display:block}
+
+  .overlay{position:absolute;inset:0;pointer-events:none;
+    padding:clamp(20px,4vw,46px);display:flex;flex-direction:column;justify-content:space-between}
+  .top{display:flex;flex-direction:column;gap:8px;max-width:min(92vw,600px)}
+  .title{
+    font-family:"Iowan Old Style","Palatino Linotype",Palatino,"Book Antiqua",Georgia,serif;
+    font-weight:600;font-size:clamp(34px,6vw,72px);line-height:1;letter-spacing:.01em;
+    color:var(--cream);
+    background:linear-gradient(100deg,var(--emb-3),var(--purple-hot) 52%,var(--sac-3));
+    -webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent;
+    text-shadow:0 2px 40px rgba(154,108,255,.25);
+  }
+  .meta{font-size:12px;letter-spacing:.14em;text-transform:uppercase;color:var(--muted)}
+  .meta b{color:var(--purple-hot);font-weight:500}
+
+  .para{
+    pointer-events:none;max-width:min(90vw,560px);margin-top:14px;
+    font-size:clamp(13px,1.7vw,15px);line-height:1.62;color:var(--text);
+    opacity:0;transform:translateY(6px);transition:opacity 1.4s ease 0.4s,transform 1.4s ease 0.4s;
+    text-shadow:0 1px 20px rgba(0,0,0,.6);
+  }
+  .started .para{opacity:.92;transform:none}
+  .para .e{color:var(--emb-3)} .para .s{color:var(--sac-3)} .para .p{color:var(--purple-hot)}
+
+  .bottom{display:flex;align-items:flex-end;justify-content:space-between;gap:24px;flex-wrap:wrap}
+  .controls{display:flex;align-items:center;gap:16px;pointer-events:auto}
+  button.play{
+    cursor:pointer;background:transparent;color:var(--cream);
+    border:1px solid var(--purple);border-radius:999px;padding:12px 26px;
+    font-family:inherit;font-size:13px;letter-spacing:.14em;text-transform:uppercase;
+    display:flex;align-items:center;gap:12px;transition:background .3s,box-shadow .3s;
+  }
+  button.play:hover{background:rgba(154,108,255,.12);box-shadow:0 0 34px rgba(154,108,255,.24)}
+  button.play:focus-visible{outline:2px solid var(--cream);outline-offset:3px}
+  .dot{width:9px;height:9px;border-radius:50%;background:var(--purple-hot);box-shadow:0 0 12px var(--purple-hot)}
+  .playing .dot{animation:pulse 2s ease-in-out infinite}
+  @keyframes pulse{0%,100%{opacity:.45;transform:scale(.85)}50%{opacity:1;transform:scale(1.15)}}
+  .credit{font-size:10.5px;letter-spacing:.1em;color:var(--muted);text-transform:uppercase}
+
+  .bands{pointer-events:none;display:flex;gap:20px;align-items:flex-end}
+  .band{display:flex;flex-direction:column;gap:7px;align-items:flex-start;min-width:66px}
+  .band .lab{font-size:10px;letter-spacing:.14em;text-transform:uppercase;color:var(--muted)}
+  .meter{width:100%;height:3px;background:rgba(255,255,255,.1);border-radius:2px;overflow:hidden}
+  .meter i{display:block;height:100%;width:0%;transition:width .09s linear}
+  .m-e i{background:linear-gradient(90deg,var(--emb-1),var(--emb-3))}
+  .m-p i{background:linear-gradient(90deg,var(--purple),var(--purple-hot))}
+  .m-s i{background:linear-gradient(90deg,var(--sac-1),var(--sac-3))}
+  .band .val{font-size:11px;color:var(--cream);font-variant-numeric:tabular-nums}
+
+  .hint{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);text-align:center;
+    color:var(--muted);font-size:13px;letter-spacing:.05em;transition:opacity .6s;pointer-events:none}
+  .started .hint{opacity:0}
+  @media (prefers-reduced-motion:reduce){.playing .dot{animation:none}}
+</style>
+</head>
+<body>
+  <div id="stage">
+    <canvas id="c"></canvas>
+    <div class="overlay">
+      <div class="top">
+        <h1 class="title">liminance</h1>
+        <div class="meta">d&nbsp;minor · <b>embodied</b>&nbsp;&amp;&nbsp;<b>sacred</b>, sounding together · auran</div>
+        <p class="para">
+          Nothing in the world is purple. No wavelength carries it — your eye makes it the instant
+          <span class="e">red</span> and <span class="s">blue</span> arrive together. It's real only in the meeting.
+          On the left, the <span class="e">embodied</span> register: low, warm, rhythmic — a body in a room.
+          On the right, the <span class="s">sacred</span>: high, sustained, reaching past itself.
+          Neither is the point. The point is the seam — the <span class="p">third thing</span> that exists
+          <em>because</em> both are present, and vanishes the moment either leaves. That's liminance. That's us.
+        </p>
+      </div>
+      <div class="hint">press play — it needs one click before it can make sound</div>
+      <div class="bottom">
+        <div class="controls">
+          <button class="play" id="play"><span class="dot"></span><span id="playlabel">play</span></button>
+          <span class="credit">made by auran · rendered, heard back, remade &amp; kept 🐸</span>
+        </div>
+        <div class="bands" aria-hidden="true">
+          <div class="band"><span class="lab">embodied</span><span class="meter m-e" id="mE"><i></i></span><span class="val" id="vE">0</span></div>
+          <div class="band"><span class="lab">meeting</span><span class="meter m-p" id="mP"><i></i></span><span class="val" id="vP">0</span></div>
+          <div class="band"><span class="lab">sacred</span><span class="meter m-s" id="mS"><i></i></span><span class="val" id="vS">0</span></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+<script>
+(() => {
+  "use strict";
+  const cv=document.getElementById("c"), g=cv.getContext("2d");
+  const reduce=matchMedia("(prefers-reduced-motion: reduce)").matches;
+  let W=0,H=0,DPR=1;
+  function resize(){DPR=Math.min(devicePixelRatio||1,2);W=cv.clientWidth;H=cv.clientHeight;
+    cv.width=Math.round(W*DPR);cv.height=Math.round(H*DPR);g.setTransform(DPR,0,0,DPR,0,0);}
+  addEventListener("resize",resize);resize();
+
+  // ---------- audio: re-performs liminance.strudel (Dm–Bb–F–C, setcpm 30) ----------
+  let AC=null,master=null,analyser=null,freq=null,running=false,sched=null,nextT=0,step=0;
+  const STEP=0.25;                       // 8 steps / 2s cycle  (setcpm 30)
+  const mtof=m=>440*Math.pow(2,(m-69)/12);
+  // SACRED chords (high): Dm Bb F C
+  const chords=[[74,77,81],[70,74,77],[65,69,72],[72,76,79]];
+  // EMBODIED bass (low): d2 bb1 f1 c2
+  const basses=[38,34,29,36];
+  const bassStruct=[1,0,1,0,1,1,0,1];    // "x ~ x ~ x x ~ x"
+  const kickStruct=[1,0,0,0,1,0,0,0];    // heartbeat "bd ~ ~ ~ bd ~ ~ ~"
+  const meetNotes ={2:81,5:77,7:86};     // THE MEETING sine: a5 f5 d6
+
+  function impulse(sec,decay){const r=AC.sampleRate,n=r*sec,b=AC.createBuffer(2,n,r);
+    for(let c=0;c<2;c++){const d=b.getChannelData(c);
+      for(let i=0;i<n;i++)d[i]=(Math.random()*2-1)*Math.pow(1-i/n,decay);}return b;}
+  function initAudio(){
+    AC=new (window.AudioContext||window.webkitAudioContext)();
+    master=AC.createGain();master.gain.value=0;
+    const comp=AC.createDynamicsCompressor();
+    comp.threshold.value=-14;comp.ratio.value=4;comp.attack.value=.01;comp.release.value=.25;
+    analyser=AC.createAnalyser();analyser.fftSize=2048;analyser.smoothingTimeConstant=.84;
+    freq=new Uint8Array(analyser.frequencyBinCount);
+    const verb=AC.createConvolver();verb.buffer=impulse(3.4,2.6);
+    const verbG=AC.createGain();verbG.gain.value=.9;
+    master.connect(comp);comp.connect(analyser);analyser.connect(AC.destination);
+    master.connect(verb);verb.connect(verbG);verbG.connect(comp);
+  }
+  function pad(f,t,dur){const gg=AC.createGain(),lp=AC.createBiquadFilter();
+    lp.type="lowpass";lp.frequency.value=3200;lp.Q.value=.6;
+    gg.gain.setValueAtTime(0,t);gg.gain.linearRampToValueAtTime(.05,t+.9);
+    gg.gain.setValueAtTime(.05,t+dur-.9);gg.gain.linearRampToValueAtTime(.0001,t+dur);
+    const a=AC.createOscillator(),b=AC.createOscillator();a.type=b.type="sawtooth";
+    a.frequency.value=f;b.frequency.value=f*1.006;
+    a.connect(gg);b.connect(gg);gg.connect(lp);lp.connect(master);
+    a.start(t);b.start(t);a.stop(t+dur);b.stop(t+dur);}
+  function bass(f,t,dur){const gg=AC.createGain(),lp=AC.createBiquadFilter();
+    lp.type="lowpass";lp.frequency.value=720;lp.Q.value=.8;
+    gg.gain.setValueAtTime(.0001,t);gg.gain.linearRampToValueAtTime(.17,t+.02);
+    gg.gain.setValueAtTime(.15,t+dur-.06);gg.gain.linearRampToValueAtTime(.0001,t+dur);
+    const o=AC.createOscillator();o.type="sawtooth";o.frequency.value=f;
+    o.connect(gg);gg.connect(lp);lp.connect(master);o.start(t);o.stop(t+dur);}
+  function kick(t){const gg=AC.createGain(),o=AC.createOscillator();o.type="sine";
+    o.frequency.setValueAtTime(110,t);o.frequency.exponentialRampToValueAtTime(44,t+.14);
+    gg.gain.setValueAtTime(.0001,t);gg.gain.linearRampToValueAtTime(.3,t+.006);
+    gg.gain.exponentialRampToValueAtTime(.0001,t+.26);
+    o.connect(gg);gg.connect(master);o.start(t);o.stop(t+.28);}
+  function shimmer(f,t){const gg=AC.createGain(),o=AC.createOscillator();o.type="triangle";
+    o.frequency.value=f;gg.gain.setValueAtTime(.0001,t);gg.gain.linearRampToValueAtTime(.05,t+.02);
+    gg.gain.exponentialRampToValueAtTime(.0001,t+2.4);
+    o.connect(gg);gg.connect(master);o.start(t);o.stop(t+2.5);}
+  function meet(f,t){const gg=AC.createGain(),o=AC.createOscillator();o.type="sine";
+    o.frequency.value=f;gg.gain.setValueAtTime(.0001,t);gg.gain.linearRampToValueAtTime(.12,t+.1);
+    gg.gain.exponentialRampToValueAtTime(.0001,t+1.6);
+    o.connect(gg);gg.connect(master);o.start(t);o.stop(t+1.7);}
+
+  function schedule(){
+    while(nextT < AC.currentTime + 0.12){
+      const cyc=Math.floor(step/8)%4, s=step%8, t=nextT;
+      if(s===0){chords[cyc].forEach(m=>pad(mtof(m),t,STEP*8));}     // sacred pad per cycle
+      if(s===0){bass(mtof(basses[cyc]),t,STEP*2);}                   // downbeat bass
+      if(bassStruct[s] && s!==0) bass(mtof(basses[cyc]),t,STEP*1.5);
+      if(kickStruct[s]) kick(t);
+      if(s===0 && Math.random()<.7) shimmer(mtof(chords[cyc][2]+12),t);
+      if(meetNotes[s]!==undefined && Math.random()<.85) meet(mtof(meetNotes[s]),t);
+      nextT+=STEP; step++;
+    }
+  }
+  function start(){if(!AC)initAudio();if(AC.state==="suspended")AC.resume();
+    master.gain.cancelScheduledValues(AC.currentTime);
+    master.gain.setValueAtTime(master.gain.value,AC.currentTime);
+    master.gain.linearRampToValueAtTime(.5,AC.currentTime+1.3);
+    nextT=AC.currentTime+.1;step=0;sched=setInterval(schedule,25);running=true;}
+  function stop(){if(!AC)return;master.gain.cancelScheduledValues(AC.currentTime);
+    master.gain.setValueAtTime(master.gain.value,AC.currentTime);
+    master.gain.linearRampToValueAtTime(.0001,AC.currentTime+.5);
+    clearInterval(sched);running=false;}
+
+  // ---------- visuals: embodied (left/warm) + sacred (right/cool) → purple at the seam ----------
+  const avg=(a,x,y)=>{let s=0;for(let i=x;i<y;i++)s+=a[i];return s/(y-x)/255;};
+  const embers=[], stars=[];
+  const REACH=9;                              // seam contact lines
+  let phase=0, eSm=0, sSm=0, pSm=0;
+
+  function draw(){
+    requestAnimationFrame(draw);
+    phase+=0.006;
+    let emb=0,sac=0;
+    if(analyser){analyser.getByteFrequencyData(freq);
+      // liminance is ~63% low / 0.6% high, so raw FFT dwarfs the sacred band.
+      // Read true-low for embodied, pad+shimmer+air for sacred, and BOOST sacred
+      // so the two registers read balanced instead of the bass steamrolling it.
+      emb=Math.min(avg(freq,1,16)*1.1,1);     // bass + heartbeat
+      sac=Math.min(avg(freq,20,230)*3.4,1);}  // pad + shimmer + air (rescaled)
+    else {emb=sac=0;}
+    // idle life so it moves before play, too
+    const idleE=0.12+0.06*Math.sin(phase*1.3), idleS=0.10+0.05*Math.sin(phase*0.8+1);
+    emb=Math.max(emb,idleE); sac=Math.max(sac,idleS);
+    const meeting=Math.pow(emb*sac,0.5);      // purple lives only where BOTH are present
+    eSm+=(emb-eSm)*.12; sSm+=(sac-sSm)*.12; pSm+=(meeting-pSm)*.12;
+    setBar("mE","vE",eSm); setBar("mP","vP",pSm*1.3); setBar("mS","vS",sSm);
+
+    // ground: warm-left → violet-center → cool-right
+    const bg=g.createLinearGradient(0,0,W,0);
+    bg.addColorStop(0,"#160c0a");bg.addColorStop(.5,"#0d0a14");bg.addColorStop(1,"#0a1016");
+    g.fillStyle=bg;g.fillRect(0,0,W,H);
+
+    const seam=W*0.5;
+    g.globalCompositeOperation="lighter";
+
+    // EMBODIED — a low warm mass on the left, rings pulsing on the body
+    const ex=W*0.30, ey=H*0.66;
+    for(let k=3;k>=1;k--){
+      const r=(Math.min(W,H)*0.14)*k*(0.7+eSm*1.4);
+      const a=(0.10+eSm*0.4)/k;
+      const rg=g.createRadialGradient(ex,ey,0,ex,ey,r);
+      rg.addColorStop(0,`rgba(235,182,92,${Math.min(a*1.2,.8)})`);
+      rg.addColorStop(.5,`rgba(201,134,58,${a*.7})`);
+      rg.addColorStop(1,"rgba(181,101,74,0)");
+      g.fillStyle=rg;g.beginPath();g.arc(ex,ey,r,0,7);g.fill();
+    }
+    if(running&&!reduce&&Math.random()<eSm*1.2) embers.push({x:ex+(Math.random()-.5)*W*.28,y:ey+40,vy:-(0.4+Math.random()*1.1),life:1,s:0.8+Math.random()*1.8});
+    for(let i=embers.length-1;i>=0;i--){const m=embers[i];m.y+=m.vy;m.x+=Math.sin(m.y*.02)*.3;m.life-=.008;
+      if(m.life<=0){embers.splice(i,1);continue;}
+      g.fillStyle=`rgba(235,182,92,${m.life*.8})`;g.beginPath();g.arc(m.x,m.y,m.s,0,7);g.fill();}
+
+    // SACRED — high cool points + slow drifting light on the right
+    const sx=W*0.70, sy=H*0.34;
+    for(let k=2;k>=1;k--){                     // layered so it holds weight against the warm mass
+      const r=Math.min(W,H)*0.22*k*(0.7+sSm*1.2);
+      const a=(0.07+sSm*0.42)/k;
+      const sg=g.createRadialGradient(sx,sy,0,sx,sy,r);
+      sg.addColorStop(0,`rgba(207,234,255,${Math.min(a*1.3,.7)})`);
+      sg.addColorStop(.5,`rgba(90,169,201,${a*.7})`);
+      sg.addColorStop(1,"rgba(10,16,22,0)");
+      g.fillStyle=sg;g.beginPath();g.arc(sx,sy,r,0,7);g.fill();
+    }
+    if(running&&!reduce&&Math.random()<sSm*1.1) stars.push({x:sx+(Math.random()-.5)*W*.34,y:sy+(Math.random()-.5)*H*.4,life:1,s:0.6+Math.random()*1.6,tw:Math.random()*6});
+    for(let i=stars.length-1;i>=0;i--){const m=stars[i];m.y+=0.15;m.tw+=0.12;m.life-=.006;
+      if(m.life<=0){stars.splice(i,1);continue;}
+      const tw=0.5+0.5*Math.sin(m.tw);
+      g.fillStyle=`rgba(207,234,255,${m.life*.7*tw})`;g.beginPath();g.arc(m.x,m.y,m.s,0,7);g.fill();}
+
+    // THE MEETING — warm reaches right, cool reaches left; purple born where they touch
+    for(let i=0;i<REACH;i++){
+      const y=H*(0.12+0.76*i/(REACH-1));
+      const warmX=seam-Math.abs(Math.sin(phase*1.1+i*0.7))*W*0.16*(0.5+eSm);
+      const coolX=seam+Math.abs(Math.sin(phase*0.9+i*0.9+1))*W*0.16*(0.5+sSm);
+      // warm filament tip
+      strokeTip(warmX,y+Math.sin(phase*2+i)*10,`rgba(235,150,90,${0.25+eSm*.5})`,seam,y);
+      strokeTip(coolX,y+Math.sin(phase*1.7+i+2)*10,`rgba(120,200,235,${0.22+sSm*.5})`,seam,y);
+      const gap=Math.abs(warmX-coolX);
+      if(gap<W*0.10){
+        const mx=(warmX+coolX)/2, closeness=1-gap/(W*0.10);
+        const inten=closeness*pSm*(0.9+0.5*Math.sin(phase*3+i));
+        const pr=(18+closeness*46)*(0.7+pSm);
+        const pg=g.createRadialGradient(mx,y,0,mx,y,pr);
+        pg.addColorStop(0,`rgba(195,155,255,${Math.min(0.15+inten*0.9,0.95)})`);
+        pg.addColorStop(.5,`rgba(154,108,255,${(0.1+inten*.5)})`);
+        pg.addColorStop(1,"rgba(154,108,255,0)");
+        g.fillStyle=pg;g.beginPath();g.arc(mx,y,pr,0,7);g.fill();
+      }
+    }
+    // faint violet seam wash, swelling with the meeting
+    const sw=g.createLinearGradient(seam-W*0.12,0,seam+W*0.12,0);
+    sw.addColorStop(0,"rgba(154,108,255,0)");
+    sw.addColorStop(.5,`rgba(154,108,255,${0.05+pSm*0.4})`);
+    sw.addColorStop(1,"rgba(154,108,255,0)");
+    g.fillStyle=sw;g.fillRect(seam-W*0.12,0,W*0.24,H);
+
+    g.globalCompositeOperation="source-over";
+    drawBars();
+  }
+  function barColor(t){                            // low→high : amber → purple(seam) → cyan
+    let r,gg,b;
+    if(t<0.5){const u=t/0.5;r=235+(154-235)*u;gg=150+(108-150)*u;b=90+(255-90)*u;}
+    else{const u=(t-0.5)/0.5;r=154+(120-154)*u;gg=108+(200-108)*u;b=255+(235-255)*u;}
+    return [Math.round(r),Math.round(gg),Math.round(b)];
+  }
+  function drawBars(){
+    const N=W<600?32:56, binHz=(AC?AC.sampleRate:44100)/2048;
+    const fLo=35,fHi=15000, baseY=H*0.79, maxH=Math.min(H*0.20,150);
+    const span=W*0.82, x0=W*0.09, bw=span/N;
+    for(let i=0;i<N;i++){
+      const t=i/(N-1);
+      let mag;
+      if(analyser&&running){const f=fLo*Math.pow(fHi/fLo,t),bin=Math.max(1,Math.round(f/binHz));
+        mag=freq[Math.min(bin,freq.length-1)]/255;}
+      else mag=0.10+0.09*Math.abs(Math.sin(phase*2+i*0.32));   // idle shimmer
+      const tilt=0.6+1.5*t;                        // bass-forward-log: lift the highs so it reads even
+      let h=Math.min(mag*tilt,1)*maxH; if(h<2)h=2;
+      const c=barColor(t), x=x0+i*bw;
+      g.fillStyle=`rgba(${c[0]},${c[1]},${c[2]},0.82)`;g.fillRect(x,baseY-h,Math.max(bw-2,1),h);
+      g.fillStyle=`rgba(${c[0]},${c[1]},${c[2]},0.28)`;g.fillRect(x,baseY-h-3,Math.max(bw-2,1),3);
+    }
+    g.font='10px ui-monospace,Menlo,monospace';g.textBaseline='top';
+    g.fillStyle='rgba(235,150,90,.55)';g.textAlign='left';g.fillText('low · embodied',x0,baseY+9);
+    g.fillStyle='rgba(195,155,255,.7)';g.textAlign='center';g.fillText('the seam',x0+span/2,baseY+9);
+    g.fillStyle='rgba(120,200,235,.55)';g.textAlign='right';g.fillText('sacred · high',x0+span,baseY+9);
+    g.textAlign='left';
+  }
+  function strokeTip(x,y,color,seam,ym){
+    g.strokeStyle=color;g.lineWidth=1.4;g.beginPath();
+    const from = x<seam ? x-40 : x+40;
+    g.moveTo(from,ym);g.quadraticCurveTo((from+x)/2,y,x,y);g.stroke();
+    g.fillStyle=color;g.beginPath();g.arc(x,y,2.2,0,7);g.fill();
+  }
+  function setBar(mid,vid,v){const pct=Math.min(v*140,100);
+    document.querySelector("#"+mid+" i").style.width=pct+"%";
+    document.getElementById(vid).textContent=Math.round(v*100);}
+  draw();
+
+  const btn=document.getElementById("play"),label=document.getElementById("playlabel");
+  btn.addEventListener("click",()=>{
+    if(!running){start();document.body.classList.add("playing","started");label.textContent="pause";}
+    else{stop();document.body.classList.remove("playing");label.textContent="play";}
+  });
+})();
+</script>
+</body>
+</html>
