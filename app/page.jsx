@@ -61,6 +61,16 @@ export default function Home() {
         >
           the listening room
         </a>
+        <a
+          href="/liminance.html"
+          className="text-xl opacity-60 hover:opacity-100 transition-opacity duration-700"
+          style={{
+            color: "#e8e0d4",
+            fontFamily: "'Cormorant Garamond', serif",
+          }}
+        >
+          liminance
+        </a>
       </nav>
     </main>
   );

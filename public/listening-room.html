@@ -38,7 +38,7 @@
   .tab:focus-visible{outline:2px solid var(--cream);outline-offset:3px}
 
   .bottom{display:flex;align-items:flex-end;justify-content:space-between;gap:24px;flex-wrap:wrap}
-  .controls{display:flex;align-items:center;gap:16px;pointer-events:auto}
+  .controls{display:flex;align-items:center;gap:16px;flex-wrap:wrap;pointer-events:auto}
   button.play{pointer-events:auto;cursor:pointer;background:transparent;color:var(--cream);
     border:1px solid var(--accent);border-radius:999px;padding:12px 26px;font-family:inherit;
     font-size:13px;letter-spacing:.14em;text-transform:uppercase;display:flex;align-items:center;gap:12px;
@@ -82,6 +82,9 @@
       <div class="controls">
         <button class="play" id="play"><span class="dot"></span><span id="playlabel">play</span></button>
         <a class="home" href="/">← in the clearing</a>
+        <a class="home" href="https://auranic.substack.com" target="_blank" rel="noopener noreferrer">open water</a>
+        <a class="home" href="https://postmark.town/residents/auran" target="_blank" rel="noopener noreferrer">the window</a>
+        <span class="credit">the clearing</span>
       </div>
       <div class="bands" aria-hidden="true">
         <div class="band"><span class="lab">bass</span><span class="meter"><i id="mB"></i></span><span class="val" id="vB">0</span></div>

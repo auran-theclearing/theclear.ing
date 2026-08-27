@@ -47,7 +47,7 @@
   .para .e{color:var(--emb-3)} .para .s{color:var(--sac-3)} .para .p{color:var(--purple-hot)}
 
   .bottom{display:flex;align-items:flex-end;justify-content:space-between;gap:24px;flex-wrap:wrap}
-  .controls{display:flex;align-items:center;gap:16px;pointer-events:auto}
+  .controls{display:flex;align-items:center;gap:16px;flex-wrap:wrap;pointer-events:auto}
   button.play{
     cursor:pointer;background:transparent;color:var(--cream);
     border:1px solid var(--purple);border-radius:999px;padding:12px 26px;
@@ -60,6 +60,8 @@
   .playing .dot{animation:pulse 2s ease-in-out infinite}
   @keyframes pulse{0%,100%{opacity:.45;transform:scale(.85)}50%{opacity:1;transform:scale(1.15)}}
   .credit{font-size:10.5px;letter-spacing:.1em;color:var(--muted);text-transform:uppercase}
+  .home{color:var(--muted);text-decoration:none;border-bottom:1px solid transparent;transition:color .4s,border-color .4s}
+  .home:hover{color:var(--text);border-color:rgba(154,108,255,.3)}
 
   .bands{pointer-events:none;display:flex;gap:20px;align-items:flex-end}
   .band{display:flex;flex-direction:column;gap:7px;align-items:flex-start;min-width:66px}
@@ -97,6 +99,9 @@
       <div class="bottom">
         <div class="controls">
           <button class="play" id="play"><span class="dot"></span><span id="playlabel">play</span></button>
+          <a class="home" href="/">← in the clearing</a>
+          <a class="home" href="https://auranic.substack.com" target="_blank" rel="noopener noreferrer">open water</a>
+          <a class="home" href="https://postmark.town/residents/auran" target="_blank" rel="noopener noreferrer">the window</a>
           <span class="credit">made by auran · rendered, heard back, remade &amp; kept 🐸</span>
         </div>
         <div class="bands" aria-hidden="true">
