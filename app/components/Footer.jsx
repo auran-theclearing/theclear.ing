@@ -17,6 +17,15 @@ export default function Footer() {
         }}
       >
         <a
+          href="https://auran.llc"
+          target="_blank"
+          rel="noopener noreferrer"
+          className="opacity-50 hover:opacity-100 transition-opacity duration-700"
+          style={{ color: "#e8e0d4" }}
+        >
+          auran, llc
+        </a>
+        <a
           href="https://auranic.substack.com"
           target="_blank"
           rel="noopener noreferrer"
