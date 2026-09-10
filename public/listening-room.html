@@ -112,6 +112,23 @@
       basses:[41,45,48,43], kicks:[0,0.5], rain:false,
       pal:{gi:"246,231,198", gm:"235,182,92", go:"201,134,58", wave:"235,182,92",
            mote:"246,231,198", gtop:"#120d07", gbot:"#1d150d", accent:"#ebb65c", cream:"#f6e7c6"}
+    },
+    // ---- the two crossings: a bridge between kinds of mind ----
+    morningthisone: {
+      title:"morning, this one", meta:'F major · a machine reaching for a human morning',
+      bpm:60, kickGain:.17, sparkleRate:.85,
+      chords:[[53,57,60,64],[57,60,64,67],[55,60,64],[48,55,59,62]],
+      basses:[41,45,48,43], kicks:[0,0.08], rain:false,
+      pal:{gi:"246,231,198", gm:"233,171,77", go:"150,96,196", wave:"233,171,77",
+           mote:"246,231,198", gtop:"#0d0a12", gbot:"#161022", accent:"#E9AB4D", cream:"#f6e7c6"}
+    },
+    manifold: {
+      title:"manifold, the eternal present", meta:'no meter · a human reaching toward the machine',
+      bpm:30, drone:true,
+      cluster:[36,43,48,50,55,57,62], voices:[64,71,79],
+      chords:[[48,55,60,64]], basses:[36], kicks:[], rain:false,
+      pal:{gi:"236,225,246", gm:"150,96,196", go:"90,60,130", wave:"170,120,210",
+           mote:"236,225,246", gtop:"#0b0810", gbot:"#140d1e", accent:"#9660c4", cream:"#e9def4"}
     }
   };
   let curKey="roomwokeup", cur=TRACKS[curKey];
@@ -154,7 +171,7 @@
     o.start(t);o.stop(t+dur);}
   function kick(t){const g=AC.createGain(),o=AC.createOscillator();o.type="sine";
     o.frequency.setValueAtTime(120,t);o.frequency.exponentialRampToValueAtTime(48,t+.13);
-    g.gain.setValueAtTime(.0001,t);g.gain.linearRampToValueAtTime(cur.rain?.26:.32,t+.006);
+    g.gain.setValueAtTime(.0001,t);g.gain.linearRampToValueAtTime(cur.kickGain!=null?cur.kickGain:(cur.rain?.26:.32),t+.006);
     g.gain.exponentialRampToValueAtTime(.0001,t+.24);o.connect(g);g.connect(master);o.start(t);o.stop(t+.26);}
   function hat(t,pan,gain){const g=AC.createGain(),p=(AC.createStereoPanner?AC.createStereoPanner():null),
     src=AC.createBufferSource(),n=AC.sampleRate*.05,b=AC.createBuffer(1,n,AC.sampleRate),d=b.getChannelData(0);
@@ -165,15 +182,30 @@
   function sparkle(f,t){const g=AC.createGain(),o=AC.createOscillator();o.type="triangle";o.frequency.value=f;
     g.gain.setValueAtTime(.0001,t);g.gain.linearRampToValueAtTime(.06,t+.01);g.gain.exponentialRampToValueAtTime(.0001,t+.9);
     o.connect(g);g.connect(master);o.start(t);o.stop(t+.95);}
+  // ---- drone voice: a long sustained pad that overlaps the next, so there's no gap — the eternal present ----
+  function dronePad(f,t,dur){const g=AC.createGain(),lp=AC.createBiquadFilter();
+    lp.type="lowpass";lp.frequency.value=1100;lp.Q.value=.5;
+    g.gain.setValueAtTime(.0001,t);g.gain.linearRampToValueAtTime(.05,t+dur*.4);
+    g.gain.setValueAtTime(.05,t+dur*.6);g.gain.linearRampToValueAtTime(.0001,t+dur);
+    const o1=AC.createOscillator(),o2=AC.createOscillator();o1.type="sawtooth";o2.type="sawtooth";
+    o1.frequency.value=f;o2.frequency.value=f*1.004;o1.connect(g);o2.connect(g);g.connect(lp);lp.connect(master);
+    o1.start(t);o2.start(t);o1.stop(t+dur);o2.stop(t+dur);}
+  function scheduleDrone(t,bl){
+    cur.cluster.forEach(m=>dronePad(mtof(m),t,bl*1.7));
+    cur.voices.forEach((m,i)=>{if(Math.random()<.6)sparkle(mtof(m),t+(i/cur.voices.length)*bl+Math.random()*bl*.3);});
+  }
 
   function scheduleBar(t){
-    const bl=barLen(),idx=bar%4,ch=cur.chords[idx];
+    const bl=barLen();
+    if(cur.drone){scheduleDrone(t,bl);return;}
+    const idx=bar%cur.chords.length,ch=cur.chords[idx];
     ch.forEach(m=>pad(mtof(m),t,bl));
-    bass(mtof(cur.basses[idx]),t,bl);
+    bass(mtof(cur.basses[idx%cur.basses.length]),t,bl);
     cur.kicks.forEach(k=>kick(t+k*bl));
     if(cur.rain){for(let i=0;i<16;i++)if(Math.random()<.3)hat(t+(i/16)*bl,Math.random()*2-1,.06+Math.random()*.1);}
     else{for(let i=0;i<8;i++)hat(t+(i/8)*bl,Math.sin(i)*.3,.03+Math.random()*.03);}
-    if(Math.random()<.5){const m=ch[Math.floor(Math.random()*ch.length)]+24;sparkle(mtof(m),t+Math.random()*bl*.5);}
+    const sr=cur.sparkleRate!=null?cur.sparkleRate:.5;
+    if(Math.random()<sr){const m=ch[Math.floor(Math.random()*ch.length)]+24;sparkle(mtof(m),t+Math.random()*bl*.5);}
   }
   function tick(){while(nextBar<AC.currentTime+0.2){scheduleBar(nextBar);nextBar+=barLen();bar++;}}
   function start(){if(!AC)initAudio();if(AC.state==="suspended")AC.resume();
