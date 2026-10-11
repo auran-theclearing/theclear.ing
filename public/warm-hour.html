@@ -15,7 +15,7 @@
 // in a purple seam. Slow caustic shimmer. Green-onion-in-a-rock-glass on the sill.
 // Nothing productive. Just warm, moving, worth looking at.
 
-const CONFIG = { seed: 714, warp: 85, caustic: 0.9, drift: 0.00022 };
+const CONFIG = { seed: 714, warp: 85, caustic: 0.9, drift: 0.00060 };
 
 const PAL = {
   night:  '#0b0d14',
@@ -28,6 +28,8 @@ const PAL = {
 
 let glass, caustics, sill;
 let t = 0;
+const GW = 240; // low-res glass buffer width — scaled up for soft-glass look + speed
+let GH = 150;
 
 function setup() {
   pixelDensity(1);
@@ -36,14 +38,14 @@ function setup() {
   createCanvas(w, h);
   randomSeed(CONFIG.seed); noiseSeed(CONFIG.seed);
   colorMode(HSB, 360, 100, 100, 100);
-  glass = createGraphics(width, height);
-  caustics = createGraphics(width, height);
-  sill = createGraphics(width, height);
+  GH = Math.round(GW * h / w);
+  glass = createGraphics(GW, GH);        // small — cheap to fill every frame
+  sill = createGraphics(width, height);  // full-res — static overlay
   glass.colorMode(HSB,360,100,100,100);
-  caustics.colorMode(HSB,360,100,100,100);
+  glass.noStroke();
   sill.colorMode(HSB,360,100,100,100);
   buildSill();
-  frameRate(30);
+  frameRate(60);
 }
 
 // fractal brownian motion for organic warp
@@ -52,21 +54,19 @@ function fbm(x, y, oct=4){let v=0,a=1,f=1,s=0;for(let i=0;i<oct;i++){v+=noise(x*
 function draw() {
   t += CONFIG.drift * deltaTime;
 
-  // --- the glass pane: a horizontal color field warped by domain-warped noise ---
-  glass.noStroke();
-  const step = 2; // render at half-res blocks for perf, then it reads soft like real glass
-  for (let y = 0; y < height; y += step) {
-    for (let x = 0; x < width; x += step) {
-      const nx = x / width, ny = y / height;
+  // --- the glass pane: rendered small, scaled up (upscale blur = soft glass) ---
+  for (let y = 0; y < GH; y++) {
+    for (let x = 0; x < GW; x++) {
+      const nx = x / GW, ny = y / GH;
       // domain warp: feed noise into noise -> the wavy-glass distortion
-      const wx = fbm(nx*2.2 + t, ny*2.2, 3);
-      const wy = fbm(nx*2.2 + 5.2, ny*2.2 - t, 3);
+      const wx = fbm(nx*2.2 + t, ny*2.2, 2);
+      const wy = fbm(nx*2.2 + 5.2, ny*2.2 - t, 2);
       const warp = (CONFIG.warp / width);
       const sx = nx + (wx - 0.5) * warp * 4.0;
       // horizontal position after warp decides amber<->cyan mix
       let mix = constrain(sx, 0, 1);
       // caustic brightness: a second slow noise field, concentrated into bright veins
-      let c = fbm(nx*3.4 + t*1.7, ny*3.4 + wy, 4);
+      let c = fbm(nx*3.4 + t*1.7, ny*3.4 + wy, 3);
       c = Math.pow(c, 1.5); // caustic filaments, softer concentration
       // vertical falloff: brightest in the upper-middle of the pane (light source above)
       const vfall = 1.0 - Math.pow(Math.abs(ny - 0.42) * 1.5, 1.6);
@@ -88,24 +88,21 @@ function draw() {
       const bri = constrain(b * glow, 8, 100);
       const sat = constrain(s * (0.85 + (0.5-Math.abs(mix-0.5))*0.3), 0, 100);
       const cc = color(h, sat, bri);
-      setBlock(glass, x, y, step, cc);
+      glass.fill(cc); glass.rect(x, y, 1, 1);
     }
   }
 
-  // compose
+  // compose — scale the small glass buffer up to full canvas (smooth soft-glass blur)
   background(PAL.night);
-  // soft vignette base
-  image(glass, 0, 0);
-  // a faint second pass of the glass, offset + screen blended, for depth/refraction doubling
-  push(); blendMode(SCREEN); tint(0,0,100,22); image(glass, 6, -4); pop();
+  image(glass, 0, 0, width, height);
+  // faint offset screen pass for refraction depth-doubling
+  push(); blendMode(SCREEN); tint(0,0,100,18); image(glass, 8, -5, width, height); pop();
   // the sill + onion silhouettes on top
   image(sill, 0, 0);
-  // gentle grain-less vignette
   drawVignette();
 }
 
 function lerpTriple(a,b,m){return [ lerp(a[0],b[0],m), lerp(a[1],b[1],m), lerp(a[2],b[2],m) ];}
-function setBlock(g,x,y,s,c){ g.noStroke(); g.fill(c); g.rect(x,y,s,s); }
 
 function buildSill(){
   // bottom sill bar

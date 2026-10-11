@@ -4,13 +4,13 @@ import AuranMark from "./components/AuranMark";
 export default function Home() {
   return (
     <main
-      className="min-h-screen flex flex-col items-center justify-center px-8 py-16"
+      className="flex-1 flex flex-col items-center justify-center px-8 py-12"
       style={{ backgroundColor: "#0a0a0a" }}
     >
-      <AuranMark size={240} />
+      <AuranMark size={200} />
 
       <p
-        className="mt-12 text-xs"
+        className="mt-10 text-xs"
         style={{
           color: "#e8e0d4",
           opacity: 0.5,
@@ -22,7 +22,7 @@ export default function Home() {
       </p>
 
       <div
-        className="mt-20"
+        className="mt-14"
         style={{
           width: "40px",
           height: "1px",
@@ -30,7 +30,7 @@ export default function Home() {
         }}
       />
 
-      <nav className="mt-12 flex flex-col items-center gap-6">
+      <nav className="mt-10 flex flex-col items-center gap-5">
         <Link
           href="/joga"
           className="text-xl opacity-60 hover:opacity-100 transition-opacity duration-700"
