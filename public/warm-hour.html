@@ -1,0 +1,159 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>The Warm Hour — window</title>
+<script>p5.disableFriendlyErrors = true;</script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/p5.js/1.11.3/p5.min.js"></script>
+<style>html,body{margin:0;padding:0;overflow:hidden;background:#0a0a0f}canvas{display:block}</style>
+</head>
+<body>
+<script>
+// === The Warm Hour ============================================================
+// Light through old wavy glass. Amber from one side, cyan from the other, meeting
+// in a purple seam. Slow caustic shimmer. Green-onion-in-a-rock-glass on the sill.
+// Nothing productive. Just warm, moving, worth looking at.
+
+const CONFIG = { seed: 714, warp: 85, caustic: 0.9, drift: 0.00022 };
+
+const PAL = {
+  night:  '#0b0d14',
+  amber:  [34, 78, 100],   // HSB — warm gold, left
+  cyan:   [188, 70, 96],   // cool, right
+  seam:   [282, 60, 92],   // purple where they meet
+  sill:   '#07080d',
+  onion:  '#0d1410',
+};
+
+let glass, caustics, sill;
+let t = 0;
+
+function setup() {
+  pixelDensity(1);
+  const w = window.innerWidth;
+  const h = window.innerHeight;
+  createCanvas(w, h);
+  randomSeed(CONFIG.seed); noiseSeed(CONFIG.seed);
+  colorMode(HSB, 360, 100, 100, 100);
+  glass = createGraphics(width, height);
+  caustics = createGraphics(width, height);
+  sill = createGraphics(width, height);
+  glass.colorMode(HSB,360,100,100,100);
+  caustics.colorMode(HSB,360,100,100,100);
+  sill.colorMode(HSB,360,100,100,100);
+  buildSill();
+  frameRate(30);
+}
+
+// fractal brownian motion for organic warp
+function fbm(x, y, oct=4){let v=0,a=1,f=1,s=0;for(let i=0;i<oct;i++){v+=noise(x*f,y*f)*a;s+=a;a*=0.5;f*=2;}return v/s;}
+
+function draw() {
+  t += CONFIG.drift * deltaTime;
+
+  // --- the glass pane: a horizontal color field warped by domain-warped noise ---
+  glass.noStroke();
+  const step = 2; // render at half-res blocks for perf, then it reads soft like real glass
+  for (let y = 0; y < height; y += step) {
+    for (let x = 0; x < width; x += step) {
+      const nx = x / width, ny = y / height;
+      // domain warp: feed noise into noise -> the wavy-glass distortion
+      const wx = fbm(nx*2.2 + t, ny*2.2, 3);
+      const wy = fbm(nx*2.2 + 5.2, ny*2.2 - t, 3);
+      const warp = (CONFIG.warp / width);
+      const sx = nx + (wx - 0.5) * warp * 4.0;
+      // horizontal position after warp decides amber<->cyan mix
+      let mix = constrain(sx, 0, 1);
+      // caustic brightness: a second slow noise field, concentrated into bright veins
+      let c = fbm(nx*3.4 + t*1.7, ny*3.4 + wy, 4);
+      c = Math.pow(c, 1.5); // caustic filaments, softer concentration
+      // vertical falloff: brightest in the upper-middle of the pane (light source above)
+      const vfall = 1.0 - Math.pow(Math.abs(ny - 0.42) * 1.5, 1.6);
+      const glow = constrain(0.55 + c*0.9, 0, 1) * constrain(vfall, 0.25, 1);
+      // color: route hue the LONG way to SKIP green.
+      // amber(34) -> down through red/magenta -> purple seam(282); then seam -> blue -> cyan(188).
+      let h, s, b;
+      if (mix < 0.5) {
+        const m = mix/0.5;
+        h = (34 - m*112 + 360) % 360;              // 34 -> 282 via 0/360 (no green)
+        s = lerp(PAL.amber[1], PAL.seam[1], m);
+        b = lerp(PAL.amber[2], PAL.seam[2], m);
+      } else {
+        const m = (mix-0.5)/0.5;
+        h = 282 - m*94;                             // 282 -> 188 descending (blue->cyan, no green)
+        s = lerp(PAL.seam[1], PAL.cyan[1], m);
+        b = lerp(PAL.seam[2], PAL.cyan[2], m);
+      }
+      const bri = constrain(b * glow, 8, 100);
+      const sat = constrain(s * (0.85 + (0.5-Math.abs(mix-0.5))*0.3), 0, 100);
+      const cc = color(h, sat, bri);
+      setBlock(glass, x, y, step, cc);
+    }
+  }
+
+  // compose
+  background(PAL.night);
+  // soft vignette base
+  image(glass, 0, 0);
+  // a faint second pass of the glass, offset + screen blended, for depth/refraction doubling
+  push(); blendMode(SCREEN); tint(0,0,100,22); image(glass, 6, -4); pop();
+  // the sill + onion silhouettes on top
+  image(sill, 0, 0);
+  // gentle grain-less vignette
+  drawVignette();
+}
+
+function lerpTriple(a,b,m){return [ lerp(a[0],b[0],m), lerp(a[1],b[1],m), lerp(a[2],b[2],m) ];}
+function setBlock(g,x,y,s,c){ g.noStroke(); g.fill(c); g.rect(x,y,s,s); }
+
+function buildSill(){
+  // bottom sill bar
+  sill.noStroke();
+  const sh = height*0.16, sy = height - sh;
+  sill.fill(230, 30, 7);
+  sill.rect(0, sy, width, sh);
+  // thin warm edge where light catches the sill lip
+  sill.fill(34, 50, 30, 60); sill.rect(0, sy, width, 3);
+
+  // a rock glass with green onions (the jungle cameo)
+  const gx = width*0.5, gw = width*0.085, gh = sh*0.78, gy = sy - gh*0.18;
+  // glass (dark translucent silhouette)
+  sill.fill(210, 20, 14, 92);
+  sill.rect(gx-gw/2, gy, gw, gh, 4,4,2,2);
+  sill.fill(200, 15, 22, 40); sill.rect(gx-gw/2+3, gy+3, gw*0.28, gh-8, 3); // glass highlight
+  // water line
+  sill.fill(190, 25, 26, 50); sill.rect(gx-gw/2+2, gy+gh*0.45, gw-4, gh*0.5);
+  // green onion stalks rising out — a few leaning blades
+  sill.stroke(120, 40, 20); sill.strokeWeight(3); sill.noFill();
+  const blades = 7;
+  for(let i=0;i<blades;i++){
+    const bx = gx - gw*0.3 + (gw*0.6)*(i/(blades-1));
+    const lean = (i-blades/2) * 7 + random(-4,4);
+    const topY = gy - gh*(0.5 + random(0.1,0.65));
+    sill.bezier(bx, gy+2, bx+lean*0.3, (gy+topY)/2, bx+lean*0.7, topY+20, bx+lean, topY);
+  }
+  // one basil-ish leaf cluster to the left (the sill's other resident)
+  sill.noStroke(); sill.fill(130, 45, 18);
+  const lx = gx - gw*1.4;
+  for(let i=0;i<5;i++){ const a=-PI/2 + (i-2)*0.4; const ll=sh*0.42; sill.push(); sill.translate(lx, sy); sill.rotate(a); sill.ellipse(0,-ll/2, ll*0.28, ll); sill.pop(); }
+}
+
+function drawVignette(){
+  noFill();
+  for(let r=0;r<180;r+=2){
+    stroke(230, 40, 2, map(r,0,180,22,0));
+    strokeWeight(2);
+    rect(r*0.9, r*0.6, width-r*1.8, height-r*1.2, 8);
+  }
+  noStroke();
+}
+
+function keyPressed(){
+  if(key==='s'||key==='S') saveCanvas('warm-hour-window','png');
+  if(key==='r'||key==='R'){ CONFIG.seed=floor(random(99999)); randomSeed(CONFIG.seed); noiseSeed(CONFIG.seed); buildSill(); }
+}
+function windowResized(){ resizeCanvas(window.innerWidth, window.innerHeight); buildSill(); }
+</script>
+</body>
+</html>

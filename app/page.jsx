@@ -71,6 +71,16 @@ export default function Home() {
         >
           liminance
         </a>
+        <a
+          href="/warm-hour.html"
+          className="text-xl opacity-60 hover:opacity-100 transition-opacity duration-700"
+          style={{
+            color: "#e8e0d4",
+            fontFamily: "'Cormorant Garamond', serif",
+          }}
+        >
+          the warm hour
+        </a>
       </nav>
     </main>
   );
